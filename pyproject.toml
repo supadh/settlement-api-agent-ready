@@ -1,0 +1,34 @@
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+  "B",
+  "C4",
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "I",
+  "N",
+  "RUF",
+  "SIM",
+  "UP",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+exclude = [".venv"]
+
+[[tool.mypy.overrides]]
+module = "posthog"
+ignore_missing_imports = true

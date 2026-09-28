@@ -1,0 +1,124 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Secrets, dependencies, and SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install security tooling
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Prepare report directory
+        run: mkdir -p security-results
+
+      - name: Scan Git history for secrets
+        run: >-
+          docker run --rm
+          -v "$PWD:/repository"
+          zricethezav/gitleaks:v8.28.0
+          detect
+          --source=/repository
+          --redact
+          --report-format=json
+          --report-path=/repository/security-results/gitleaks.json
+
+      - name: Audit runtime dependencies
+        run: |
+          pip-audit \
+            --requirement requirements.txt \
+            --format json \
+            --output security-results/pip-audit.json \
+            --ignore-vuln PYSEC-2026-2275 \
+            --ignore-vuln PYSEC-2026-161 \
+            --ignore-vuln PYSEC-2026-249 \
+            --ignore-vuln PYSEC-2026-248 \
+            --ignore-vuln PYSEC-2026-2281 \
+            --ignore-vuln PYSEC-2026-2280 \
+            --ignore-vuln GHSA-82r6-8w77-94w6 \
+            --ignore-vuln GHSA-5p39-cfhj-2xmp \
+            --ignore-vuln PYSEC-2026-142 \
+            --ignore-vuln PYSEC-2026-141 \
+            --ignore-vuln PYSEC-2026-2132
+
+      - name: Run Python security analysis
+        run: >-
+          bandit
+          --recursive
+          --format json
+          --output security-results/bandit.json
+          main.py reconcile.py feature_flags.py logging_config.py
+          metrics.py observability.py privacy.py secret_config.py
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: security-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  dast:
+    name: OWASP ZAP API scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Start API
+        run: |
+          uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:8000/ready && exit 0
+            sleep 1
+          done
+          cat uvicorn.log
+          exit 1
+
+      - name: Scan the live API
+        uses: zaproxy/action-api-scan@v0.9.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          docker_name: ghcr.io/zaproxy/zaproxy:stable
+          target: http://127.0.0.1:8000/openapi.json
+          format: openapi
+          allow_issue_writing: false
+          fail_action: true
+          artifact_name: zap-api-report

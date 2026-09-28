@@ -1,0 +1,8 @@
+# Default review owner for all repository changes.
+* @supadh
+
+# Require focused review for automation and security policy.
+/.github/ @supadh
+/Dockerfile @supadh
+/requirements*.txt @supadh
+/security/ @supadh

@@ -1,0 +1,69 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff lint
+        entry: python -m ruff check .
+        language: system
+        pass_filenames: false
+      - id: ruff-format
+        name: Ruff format check
+        entry: python -m ruff format --check .
+        language: system
+        pass_filenames: false
+      - id: mypy
+        name: Strict mypy
+        entry: python -m mypy .
+        language: system
+        pass_filenames: false
+      - id: file-limits
+        name: Enforce file size and line-count limits
+        entry: python scripts/check_repository_policy.py file-limits
+        language: system
+        pass_filenames: true
+      - id: tracked-debt-markers
+        name: Require issue references on debt markers
+        entry: python scripts/check_repository_policy.py debt-markers
+        language: system
+        pass_filenames: true
+      - id: complexity
+        name: Enforce cyclomatic complexity thresholds
+        entry: >-
+          python -m xenon
+          --max-absolute B
+          --max-modules B
+          --max-average A
+          main.py reconcile.py feature_flags.py logging_config.py
+          metrics.py observability.py scripts tests
+        language: system
+        pass_filenames: false
+      - id: dead-code
+        name: Detect dead Python code
+        entry: >-
+          python -m vulture
+          main.py reconcile.py feature_flags.py logging_config.py
+          metrics.py observability.py scripts tests
+          --min-confidence 80
+        language: system
+        pass_filenames: false
+      - id: duplicate-code
+        name: Detect duplicate Python code
+        entry: >-
+          python -m pylint
+          --disable=all
+          --enable=duplicate-code
+          --min-similarity-lines=6
+          main.py reconcile.py feature_flags.py logging_config.py
+          metrics.py observability.py scripts tests
+        language: system
+        pass_filenames: false
+      - id: unused-dependencies
+        name: Detect unused Python dependencies
+        entry: >-
+          python -m deptry .
+          --extend-exclude .venv
+          --requirements-files requirements.txt
+          --requirements-files-dev requirements-dev.txt
+          --per-rule-ignores DEP002=uvicorn,DEP004=httpx|yaml
+        language: system
+        pass_filenames: false

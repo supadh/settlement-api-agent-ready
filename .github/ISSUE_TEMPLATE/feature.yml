@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a measurable product or engineering improvement
+title: "[Feature]: "
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user or operational problem, not only a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Observable outcome
+        - [ ] Tests and documentation updated
+    validations:
+      required: true
+  - type: textarea
+    id: rollout
+    attributes:
+      label: Rollout and rollback
+      description: Describe feature flags, migration, monitoring, and rollback needs.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy considerations
+    validations:
+      required: true
