@@ -15,7 +15,6 @@ from sentry_sdk import set_tag
 
 from feature_flags import feature_flags
 from logging_config import (
-    SENSITIVE_KEYS,
     configure_logging,
     logger,
     request_id_context,
@@ -33,6 +32,7 @@ from reconcile import (
     export_merchant_data,
     issue_refund,
     load_settlement_line,
+    merchant_id_for_charge,
     purge_expired_data,
     reconcile_merchant,
     record_charge,
@@ -86,9 +86,7 @@ def _safe_validation_errors(
     sanitized_errors: list[dict[str, Any]] = []
     for item in error.errors():
         sanitized = dict(item)
-        field_names = {str(part).lower() for part in item.get("loc", ())}
-        if field_names & SENSITIVE_KEYS:
-            sanitized["input"] = "[REDACTED]"
+        sanitized.pop("input", None)
         sanitized_errors.append(sanitized)
     return sanitized_errors
 
@@ -179,11 +177,14 @@ def metrics() -> Response:
 
 @app.post("/charges", response_model=ChargeResponse)
 def create_charge(request: ChargeRequest) -> ChargeData:
-    charge = record_charge(
-        request.merchant_id,
-        request.amount_cents,
-        request.card_token,
-    )
+    try:
+        charge = record_charge(
+            request.merchant_id,
+            request.amount_cents,
+            request.card_token,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     observability.capture_product_event(
         "settlement.charge_created",
         request.merchant_id,
@@ -197,7 +198,7 @@ def create_refund(charge_id: str, request: RefundRequest) -> RefundData:
         refund = issue_refund(charge_id, request.amount_cents, request.reason)
         observability.capture_product_event(
             "settlement.refund_created",
-            refund["charge_id"],
+            merchant_id_for_charge(refund["charge_id"]),
         )
         return refund
     except ValueError as error:

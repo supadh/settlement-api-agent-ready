@@ -22,6 +22,14 @@ def test_refund_larger_than_charge_is_rejected() -> None:
         reconcile.issue_refund(charge["id"], 2501, "customer request")
 
 
+def test_cumulative_refunds_cannot_exceed_charge() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 6_000, "first request")
+
+    with pytest.raises(ValueError, match="cannot exceed"):
+        reconcile.issue_refund(charge["id"], 6_000, "second request")
+
+
 def test_strict_settlement_validation_rejects_an_unknown_charge() -> None:
     with pytest.raises(ValueError, match="Charge not found"):
         reconcile.load_settlement_line(

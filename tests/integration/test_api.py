@@ -1,7 +1,10 @@
+from unittest.mock import Mock
+
 from fastapi.testclient import TestClient
 from pytest import MonkeyPatch
 
 import main
+from observability import observability as service_observability
 from privacy import PrivacySettings
 
 client = TestClient(main.app)
@@ -95,20 +98,36 @@ def test_validation_errors_do_not_reflect_card_tokens() -> None:
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["input"] == "[REDACTED]"
+    assert "input" not in response.json()["detail"][0]
 
 
-def test_empty_card_token_returns_validation_error() -> None:
+def test_container_validation_errors_do_not_reflect_tokens() -> None:
+    response = client.post(
+        "/charges",
+        json=[
+            {
+                "merchant_id": "merchant-123",
+                "amount_cents": 2500,
+                "card_token": "must-not-be-reflected",
+            }
+        ],
+    )
+
+    assert response.status_code == 422
+    assert "must-not-be-reflected" not in response.text
+
+
+def test_whitespace_card_token_returns_client_error() -> None:
     response = client.post(
         "/charges",
         json={
             "merchant_id": "merchant-123",
             "amount_cents": 2500,
-            "card_token": "",
+            "card_token": "   ",
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 400
 
 
 def test_privacy_export_requires_admin_key_and_excludes_tokens(
@@ -169,3 +188,34 @@ def test_privacy_deletion_removes_merchant_records(
     assert deleted.status_code == 200
     assert deleted.json()["deleted"]["charges"] == 1
     assert exported.json()["charges"] == []
+
+
+def test_refund_analytics_use_merchant_identity(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    capture_event = Mock()
+    monkeypatch.setattr(
+        service_observability,
+        "capture_product_event",
+        capture_event,
+    )
+    charge = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": 2500,
+            "card_token": "processor-token",
+        },
+    ).json()
+    capture_event.reset_mock()
+
+    response = client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 500, "reason": "customer request"},
+    )
+
+    assert response.status_code == 200
+    capture_event.assert_called_once_with(
+        "settlement.refund_created",
+        "merchant-123",
+    )
