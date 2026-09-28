@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sentry_sdk import set_tag
 
 from feature_flags import feature_flags
@@ -44,20 +44,20 @@ admin_api_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 
 
 class ChargeRequest(BaseModel):
-    merchant_id: str
-    amount_cents: int
-    card_token: str
+    merchant_id: str = Field(min_length=1, max_length=128)
+    amount_cents: int = Field(gt=0, le=999_999_999_999)
+    card_token: str = Field(min_length=1, max_length=512)
 
 
 class RefundRequest(BaseModel):
-    amount_cents: int
-    reason: str
+    amount_cents: int = Field(gt=0, le=999_999_999_999)
+    reason: str = Field(min_length=1, max_length=500)
 
 
 class SettlementLineRequest(BaseModel):
-    processor_ref: str
-    charge_id: str
-    amount_cents: int
+    processor_ref: str = Field(min_length=1, max_length=255)
+    charge_id: str = Field(min_length=1, max_length=64)
+    amount_cents: int = Field(gt=0, le=999_999_999_999)
 
 
 class ChargeResponse(BaseModel):
@@ -138,6 +138,8 @@ async def observe_request(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cache-Control"] = "no-store"
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=()"
         )

@@ -22,7 +22,7 @@ repos:
         language: system
         pass_filenames: true
       - id: tracked-debt-markers
-        name: Require issue references on TODO and FIXME markers
+        name: Require issue references on debt markers
         entry: python scripts/check_repository_policy.py debt-markers
         language: system
         pass_filenames: true

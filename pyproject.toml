@@ -22,7 +22,7 @@ docstring-code-format = true
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 strict = true
 warn_unreachable = true
 show_error_codes = true

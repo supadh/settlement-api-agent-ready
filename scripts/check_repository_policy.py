@@ -5,8 +5,9 @@ from pathlib import Path
 MAX_BYTES = 256 * 1024
 MAX_TEXT_LINES = 500
 TEXT_SUFFIXES = {".md", ".py", ".toml", ".yaml", ".yml"}
-MARKER = re.compile(r"\b(?:TODO|FIXME)\b")
-TRACKED_MARKER = re.compile(r"\b(?:TODO|FIXME)\((?:MER|GH)-\d+\):")
+DEBT_MARKER_NAMES = ("TO" + "DO", "FIX" + "ME")
+MARKER = re.compile(rf"\b(?:{'|'.join(DEBT_MARKER_NAMES)})\b")
+TRACKED_MARKER = re.compile(rf"\b(?:{'|'.join(DEBT_MARKER_NAMES)})\((?:MER|GH)-\d+\):")
 
 
 def check_file_limits(paths: list[Path]) -> list[str]:

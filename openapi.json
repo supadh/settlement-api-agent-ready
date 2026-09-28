@@ -4,14 +4,20 @@
       "ChargeRequest": {
         "properties": {
           "amount_cents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 999999999999.0,
             "title": "Amount Cents",
             "type": "integer"
           },
           "card_token": {
+            "maxLength": 512,
+            "minLength": 1,
             "title": "Card Token",
             "type": "string"
           },
           "merchant_id": {
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Merchant Id",
             "type": "string"
           }
@@ -138,10 +144,14 @@
       "RefundRequest": {
         "properties": {
           "amount_cents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 999999999999.0,
             "title": "Amount Cents",
             "type": "integer"
           },
           "reason": {
+            "maxLength": 500,
+            "minLength": 1,
             "title": "Reason",
             "type": "string"
           }
@@ -208,14 +218,20 @@
       "SettlementLineRequest": {
         "properties": {
           "amount_cents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 999999999999.0,
             "title": "Amount Cents",
             "type": "integer"
           },
           "charge_id": {
+            "maxLength": 64,
+            "minLength": 1,
             "title": "Charge Id",
             "type": "string"
           },
           "processor_ref": {
+            "maxLength": 255,
+            "minLength": 1,
             "title": "Processor Ref",
             "type": "string"
           }

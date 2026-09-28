@@ -15,6 +15,8 @@ def test_health_and_request_security_headers() -> None:
     assert health_response.headers["X-Content-Type-Options"] == "nosniff"
     assert health_response.headers["X-Frame-Options"] == "DENY"
     assert health_response.headers["Referrer-Policy"] == "no-referrer"
+    assert health_response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+    assert health_response.headers["Cache-Control"] == "no-store"
 
 
 def test_readiness_reports_storage_status() -> None:
@@ -94,6 +96,19 @@ def test_validation_errors_do_not_reflect_card_tokens() -> None:
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["input"] == "[REDACTED]"
+
+
+def test_empty_card_token_returns_validation_error() -> None:
+    response = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": 2500,
+            "card_token": "",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_privacy_export_requires_admin_key_and_excludes_tokens(
