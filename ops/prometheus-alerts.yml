@@ -1,0 +1,36 @@
+groups:
+  - name: meridian-settlement-api
+    rules:
+      - alert: MeridianSettlementApiUnavailable
+        expr: up{job="meridian-settlement-api"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: meridian-settlement-api
+        annotations:
+          summary: Meridian Settlement API is unavailable
+          runbook_url: docs/runbooks/api-unavailable.md
+
+      - alert: MeridianSettlementApiHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="meridian-settlement-api",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="meridian-settlement-api"}[5m]))
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: meridian-settlement-api
+        annotations:
+          summary: More than 5% of API requests are failing
+          runbook_url: docs/runbooks/api-unavailable.md
+
+      - alert: MeridianReconciliationMismatchSpike
+        expr: increase(reconciliation_mismatches_total[15m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: meridian-settlement-api
+        annotations:
+          summary: Reconciliation mismatches increased unexpectedly
+          runbook_url: docs/runbooks/reconciliation-mismatch.md

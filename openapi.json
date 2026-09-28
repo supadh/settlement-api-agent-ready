@@ -1,0 +1,444 @@
+{
+  "components": {
+    "schemas": {
+      "ChargeRequest": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "card_token": {
+            "title": "Card Token",
+            "type": "string"
+          },
+          "merchant_id": {
+            "title": "Merchant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "merchant_id",
+          "amount_cents",
+          "card_token"
+        ],
+        "title": "ChargeRequest",
+        "type": "object"
+      },
+      "ChargeResponse": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "amount_cents"
+        ],
+        "title": "ChargeResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MatchResult": {
+        "properties": {
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "ledger_amount_cents": {
+            "title": "Ledger Amount Cents",
+            "type": "integer"
+          },
+          "settled_amount_cents": {
+            "title": "Settled Amount Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "charge_id",
+          "ledger_amount_cents",
+          "settled_amount_cents"
+        ],
+        "title": "MatchResult",
+        "type": "object"
+      },
+      "MismatchResult": {
+        "properties": {
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "difference_cents": {
+            "title": "Difference Cents",
+            "type": "integer"
+          },
+          "ledger_amount_cents": {
+            "title": "Ledger Amount Cents",
+            "type": "integer"
+          },
+          "settled_amount_cents": {
+            "title": "Settled Amount Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "charge_id",
+          "ledger_amount_cents",
+          "settled_amount_cents",
+          "difference_cents"
+        ],
+        "title": "MismatchResult",
+        "type": "object"
+      },
+      "ReconciliationData": {
+        "properties": {
+          "matched": {
+            "items": {
+              "$ref": "#/components/schemas/MatchResult"
+            },
+            "title": "Matched",
+            "type": "array"
+          },
+          "merchant_id": {
+            "title": "Merchant Id",
+            "type": "string"
+          },
+          "mismatched": {
+            "items": {
+              "$ref": "#/components/schemas/MismatchResult"
+            },
+            "title": "Mismatched",
+            "type": "array"
+          }
+        },
+        "required": [
+          "merchant_id",
+          "matched",
+          "mismatched"
+        ],
+        "title": "ReconciliationData",
+        "type": "object"
+      },
+      "RefundRequest": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount_cents",
+          "reason"
+        ],
+        "title": "RefundRequest",
+        "type": "object"
+      },
+      "RefundResponse": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "charge_id",
+          "amount_cents"
+        ],
+        "title": "RefundResponse",
+        "type": "object"
+      },
+      "SettlementLineData": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "processor_ref": {
+            "title": "Processor Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "processor_ref",
+          "charge_id",
+          "amount_cents",
+          "created_at"
+        ],
+        "title": "SettlementLineData",
+        "type": "object"
+      },
+      "SettlementLineRequest": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "processor_ref": {
+            "title": "Processor Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "processor_ref",
+          "charge_id",
+          "amount_cents"
+        ],
+        "title": "SettlementLineRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Meridian Pay Settlement API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/charges": {
+      "post": {
+        "operationId": "create_charge_charges_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChargeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Charge"
+      }
+    },
+    "/charges/{charge_id}/refunds": {
+      "post": {
+        "operationId": "create_refund_charges__charge_id__refunds_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "charge_id",
+            "required": true,
+            "schema": {
+              "title": "Charge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Refund"
+      }
+    },
+    "/merchants/{merchant_id}/reconciliation": {
+      "get": {
+        "operationId": "get_reconciliation_merchants__merchant_id__reconciliation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "merchant_id",
+            "required": true,
+            "schema": {
+              "title": "Merchant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reconciliation"
+      }
+    },
+    "/settlement-lines": {
+      "post": {
+        "operationId": "create_settlement_line_settlement_lines_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementLineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementLineData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Settlement Line"
+      }
+    }
+  }
+}

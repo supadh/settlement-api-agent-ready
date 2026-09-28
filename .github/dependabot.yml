@@ -1,0 +1,49 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - type:chore
+      - area:security
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - type:chore
+      - area:ci
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      container-dependencies:
+        patterns:
+          - "*"
+    labels:
+      - type:chore
+      - area:security
+    open-pull-requests-limit: 3
