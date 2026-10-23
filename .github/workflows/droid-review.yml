@@ -1,31 +1,31 @@
-name: Droid Auto Review
-
-on:
+# factory-automation: 65095cd5-34ce-4ba0-ad29-01a3388267db
+name: Droid Code Review
+"on":
+  workflow_dispatch: {}
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
+    types:
+      - opened
+  push:
+    branches:
+      - "**"
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
 jobs:
-  droid-review:
-    if: github.event.pull_request.draft == false
+  run:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Run Droid Auto Review
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Factory droid-action
         uses: Factory-AI/droid-action@main
         with:
           factory_api_key: ${{ secrets.FACTORY_API_KEY }}
           automatic_review: true
+          automatic_security_review: true
+          review_depth: shallow
+          review_model: gpt-6.1-sol
+          reasoning_effort: medium
