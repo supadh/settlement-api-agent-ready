@@ -71,6 +71,10 @@
             "title": "Ledger Amount Cents",
             "type": "integer"
           },
+          "refunded_cents": {
+            "title": "Refunded Cents",
+            "type": "integer"
+          },
           "settled_amount_cents": {
             "title": "Settled Amount Cents",
             "type": "integer"
@@ -79,7 +83,8 @@
         "required": [
           "charge_id",
           "ledger_amount_cents",
-          "settled_amount_cents"
+          "settled_amount_cents",
+          "refunded_cents"
         ],
         "title": "MatchResult",
         "type": "object"
@@ -98,6 +103,10 @@
             "title": "Ledger Amount Cents",
             "type": "integer"
           },
+          "refunded_cents": {
+            "title": "Refunded Cents",
+            "type": "integer"
+          },
           "settled_amount_cents": {
             "title": "Settled Amount Cents",
             "type": "integer"
@@ -107,6 +116,7 @@
           "charge_id",
           "ledger_amount_cents",
           "settled_amount_cents",
+          "refunded_cents",
           "difference_cents"
         ],
         "title": "MismatchResult",
@@ -218,8 +228,12 @@
       "SettlementLineRequest": {
         "properties": {
           "amount_cents": {
-            "exclusiveMinimum": 0.0,
+            "description": "Positive for capture settlement, negative for a processor refund adjustment. Zero is rejected.",
             "maximum": 999999999999.0,
+            "minimum": -999999999999.0,
+            "not": {
+              "const": 0
+            },
             "title": "Amount Cents",
             "type": "integer"
           },
