@@ -65,6 +65,7 @@ class MatchResult(TypedDict):
     charge_id: str
     ledger_amount_cents: int
     settled_amount_cents: int
+    refunded_cents: int
 
 
 class MismatchResult(MatchResult):
@@ -177,8 +178,8 @@ def load_settlement_line(
     if strict_validation:
         if charge_id not in charges:
             raise ValueError("Charge not found")
-        if amount_cents <= 0:
-            raise ValueError("Settlement amount must be positive")
+        if amount_cents == 0:
+            raise ValueError("Settlement amount must not be zero")
 
     line = SettlementLine(
         processor_ref=processor_ref,
@@ -218,6 +219,7 @@ def reconcile_merchant(merchant_id: str) -> ReconciliationData:
                     "charge_id": charge.id,
                     "ledger_amount_cents": ledger_cents,
                     "settled_amount_cents": settled_cents,
+                    "refunded_cents": refunded_cents,
                 }
             )
         else:
@@ -226,6 +228,7 @@ def reconcile_merchant(merchant_id: str) -> ReconciliationData:
                     "charge_id": charge.id,
                     "ledger_amount_cents": ledger_cents,
                     "settled_amount_cents": settled_cents,
+                    "refunded_cents": refunded_cents,
                     "difference_cents": settled_cents - ledger_cents,
                 }
             )

@@ -28,8 +28,11 @@ python scripts/smoke_test.py --base-url http://127.0.0.1:8000
 ```
 
 The script waits for the API, creates a synthetic charge, loads a matching
-settlement line, retrieves reconciliation, and exits successfully only when the
-charge is reported as matched. Expected output:
+settlement line, and confirms the charge is reported as matched. It then issues
+a partial refund, loads the processor's negative refund adjustment line for the
+same charge, and confirms the charge reconciles as matched again at the reduced
+ledger amount. It exits successfully only when both checks pass. Expected
+output:
 
 ```text
 Interactive API smoke test passed

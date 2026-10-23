@@ -43,6 +43,30 @@ sequenceDiagram
     API-->>Client: Reconciliation result
 ```
 
+## Settlement-line semantics
+
+Each settlement line belongs to one charge and carries a signed, non-zero
+integer `amount_cents`:
+
+- A positive line is the processor's capture settlement for the charge.
+- A negative line is a processor refund adjustment. Processors settle a partial
+  refund as a negative line in a later settlement file. Adjustments link to the
+  charge only, not to an individual refund.
+- A zero amount is rejected.
+
+Reconciliation compares, per charge:
+
+- `ledger_amount_cents = charge.amount_cents - sum(refunds)`
+- `settled_amount_cents = sum(settlement lines)` (signed)
+
+Equal values are `matched`; otherwise the charge is `mismatched` with
+`difference_cents = settled_amount_cents - ledger_amount_cents`. Every entry also
+reports `refunded_cents` (the sum of ledger refunds). When `difference_cents`
+equals `refunded_cents`, the refund is still awaiting its processor adjustment.
+That mismatch is expected and clears once the adjustment line is ingested,
+typically from the next settlement file. Adjustments that exceed the refunded
+amount stay mismatched and need investigation.
+
 ## External dependencies
 
 The running service calls no database. Optional Sentry and PostHog adapters are

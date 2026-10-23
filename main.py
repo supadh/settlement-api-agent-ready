@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sentry_sdk import set_tag
 
 from feature_flags import feature_flags
@@ -57,7 +57,23 @@ class RefundRequest(BaseModel):
 class SettlementLineRequest(BaseModel):
     processor_ref: str = Field(min_length=1, max_length=255)
     charge_id: str = Field(min_length=1, max_length=64)
-    amount_cents: int = Field(gt=0, le=999_999_999_999)
+    amount_cents: int = Field(
+        ge=-999_999_999_999,
+        le=999_999_999_999,
+        description=(
+            "Positive for capture settlement, negative for a processor refund "
+            "adjustment. Zero is rejected."
+        ),
+        json_schema_extra={"not": {"const": 0}},
+    )
+
+    # Pydantic has no `ne` constraint, so zero is rejected here.
+    @field_validator("amount_cents")
+    @classmethod
+    def amount_must_be_non_zero(cls, amount_cents: int) -> int:
+        if amount_cents == 0:
+            raise ValueError("Settlement amount must not be zero")
+        return amount_cents
 
 
 class ChargeResponse(BaseModel):
@@ -87,6 +103,11 @@ def _safe_validation_errors(
     for item in error.errors():
         sanitized = dict(item)
         sanitized.pop("input", None)
+        context = sanitized.get("ctx")
+        # Custom validators put the raised exception object in ctx, which
+        # JSONResponse cannot serialize.
+        if isinstance(context, dict) and "error" in context:
+            sanitized["ctx"] = {**context, "error": str(context["error"])}
         sanitized_errors.append(sanitized)
     return sanitized_errors
 

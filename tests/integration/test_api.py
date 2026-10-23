@@ -71,6 +71,7 @@ def test_charge_settlement_and_reconciliation_flow() -> None:
                 "charge_id": charge_id,
                 "ledger_amount_cents": 2500,
                 "settled_amount_cents": 2500,
+                "refunded_cents": 0,
             }
         ],
         "mismatched": [],
@@ -219,3 +220,61 @@ def test_refund_analytics_use_merchant_identity(
         "settlement.refund_created",
         "merchant-123",
     )
+
+
+def _post_settlement_line(charge_id: str, amount_cents: int) -> int:
+    response = client.post(
+        "/settlement-lines",
+        json={
+            "processor_ref": f"processor-ref-{amount_cents}",
+            "charge_id": charge_id,
+            "amount_cents": amount_cents,
+        },
+    )
+    return response.status_code
+
+
+def _create_charge(amount_cents: int) -> str:
+    response = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": amount_cents,
+            "card_token": "card-token",
+        },
+    )
+    assert response.status_code == 200
+    return str(response.json()["id"])
+
+
+def test_settlement_line_accepts_negative_and_rejects_zero_amounts() -> None:
+    charge_id = _create_charge(2500)
+
+    assert _post_settlement_line(charge_id, -500) == 200
+    assert _post_settlement_line(charge_id, 0) == 422
+
+
+def test_partial_refund_reconciles_once_adjustment_is_ingested() -> None:
+    charge_id = _create_charge(2500)
+    refund_response = client.post(
+        f"/charges/{charge_id}/refunds",
+        json={"amount_cents": 500, "reason": "customer request"},
+    )
+    assert refund_response.status_code == 200
+    assert _post_settlement_line(charge_id, 2500) == 200
+
+    pending = client.get("/merchants/merchant-123/reconciliation").json()
+    assert pending["mismatched"][0]["difference_cents"] == 500
+    assert pending["mismatched"][0]["refunded_cents"] == 500
+
+    assert _post_settlement_line(charge_id, -500) == 200
+    reconciled = client.get("/merchants/merchant-123/reconciliation").json()
+    assert reconciled["mismatched"] == []
+    assert reconciled["matched"] == [
+        {
+            "charge_id": charge_id,
+            "ledger_amount_cents": 2000,
+            "settled_amount_cents": 2000,
+            "refunded_cents": 500,
+        }
+    ]
