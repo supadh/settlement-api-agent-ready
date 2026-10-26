@@ -69,6 +69,7 @@ class RefundResponse(BaseModel):
     id: str
     charge_id: str
     amount_cents: int
+    remaining_charge_cents: int
 
 
 def require_admin_access(
