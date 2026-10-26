@@ -83,7 +83,7 @@ retains test timing output.
 
 ## Workflow
 
-Use the Linear **Agent Readiness Level-Up** project for implementation tracking.
+Use the Linear **payment-gateway-settlement** project for implementation tracking.
 Link pull requests to the relevant MER issue and GitHub coordination issue #1.
 Use conventional commit subjects so Release Please generates useful notes.
 Do not mark remotely validated tasks complete until CI, review, deployment, or

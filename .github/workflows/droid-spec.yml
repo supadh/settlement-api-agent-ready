@@ -1,0 +1,66 @@
+name: Droid Spec
+
+# Fired by factory-bridge when a feature request is posted in Slack.
+# Droid drafts a spec from the codebase; the spec becomes a Linear ticket in Backlog.
+
+on:
+  repository_dispatch:
+    types: [droid-spec]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: droid-spec-${{ github.event.client_payload.ts }}
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LINEAR_TEAM_KEY: ${{ vars.LINEAR_TEAM_KEY }}
+      LINEAR_BUILD_STATE: ${{ vars.LINEAR_BUILD_STATE || 'Todo' }}
+      LINEAR_PROJECT_NAME: ${{ vars.LINEAR_PROJECT_NAME }}
+      SLACK_CHANNEL: ${{ github.event.client_payload.channel }}
+      SLACK_TS: ${{ github.event.client_payload.ts }}
+      SLACK_PERMALINK: ${{ github.event.client_payload.permalink }}
+      REQUESTER: ${{ github.event.client_payload.requester }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install Factory Droid
+        run: |
+          curl -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build prompt
+        env:
+          REQUEST: ${{ github.event.client_payload.text }}
+        run: |
+          cp .github/droid-bridge/spec-prompt.md "$RUNNER_TEMP/prompt.md"
+          printf '%s\n' "$REQUEST" >> "$RUNNER_TEMP/prompt.md"
+
+      - name: Draft spec with Droid
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          DROID_MODEL: ${{ vars.DROID_MODEL }}
+        run: |
+          droid exec --auto low ${DROID_MODEL:+--model "$DROID_MODEL"} -f "$RUNNER_TEMP/prompt.md"
+          test -s droid-out/spec.md || { echo "::error::Droid did not write droid-out/spec.md"; exit 1; }
+          cat droid-out/spec.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create Linear ticket and reply in Slack
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: node .github/droid-bridge/bridge.mjs create-issue --spec droid-out/spec.md
+
+      - name: Report failure in Slack
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        run: >-
+          node .github/droid-bridge/bridge.mjs slack
+          --text "⚠️ Droid couldn't draft a spec for this one. <$RUN_URL|See the run>"
