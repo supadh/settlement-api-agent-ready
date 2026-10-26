@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.2.0...meridian-settlement-api-v0.2.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* make Droid Build write a reviewer-facing PR description ([9d54053](https://github.com/supadh/settlement-api-agent-ready/commit/9d540531e66e956f2db8f4982b9413ff76e7c263))
+
 ## [0.2.0](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.1.0...meridian-settlement-api-v0.2.0) (2026-10-26)
 
 
