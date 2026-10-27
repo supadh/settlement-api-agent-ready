@@ -27,10 +27,12 @@ from reconcile import (
     MerchantExportData,
     ReconciliationData,
     RefundData,
+    RefundHistoryData,
     SettlementLineData,
     delete_merchant_data,
     export_merchant_data,
     issue_refund,
+    list_refunds_for_charge,
     load_settlement_line,
     merchant_id_for_charge,
     purge_expired_data,
@@ -69,6 +71,22 @@ class RefundResponse(BaseModel):
     id: str
     charge_id: str
     amount_cents: int
+
+
+class RefundHistoryItemResponse(BaseModel):
+    id: str
+    charge_id: str
+    amount_cents: int
+    reason: str
+    created_at: datetime
+
+
+class RefundHistoryResponse(BaseModel):
+    charge_id: str
+    charge_amount_cents: int
+    total_refunded_cents: int
+    refundable_balance_cents: int
+    refunds: list[RefundHistoryItemResponse]
 
 
 def require_admin_access(
@@ -203,6 +221,17 @@ def create_refund(charge_id: str, request: RefundRequest) -> RefundData:
         return refund
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.get(
+    "/charges/{charge_id}/refunds",
+    response_model=RefundHistoryResponse,
+)
+def get_refund_history(charge_id: str) -> RefundHistoryData:
+    try:
+        return list_refunds_for_charge(charge_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @app.post("/settlement-lines")

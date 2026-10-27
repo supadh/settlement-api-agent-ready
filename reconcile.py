@@ -61,6 +61,14 @@ class SettlementLineData(TypedDict):
     created_at: datetime
 
 
+class RefundHistoryData(TypedDict):
+    charge_id: str
+    charge_amount_cents: int
+    total_refunded_cents: int
+    refundable_balance_cents: int
+    refunds: list[RefundData]
+
+
 class MatchResult(TypedDict):
     charge_id: str
     ledger_amount_cents: int
@@ -158,6 +166,25 @@ def issue_refund(charge_id: str, amount_cents: int, reason: str) -> RefundData:
         extra={"refund_id": refund.id, "charge_id": charge_id},
     )
     return _refund_data(refund)
+
+
+def list_refunds_for_charge(charge_id: str) -> RefundHistoryData:
+    charge = charges.get(charge_id)
+    if charge is None:
+        raise ValueError("Charge not found")
+    charge_refunds = [refund for refund in refunds if refund.charge_id == charge_id]
+    total_refunded_cents = sum(refund.amount_cents for refund in charge_refunds)
+    return {
+        "charge_id": charge_id,
+        "charge_amount_cents": charge.amount_cents,
+        "total_refunded_cents": total_refunded_cents,
+        "refundable_balance_cents": charge.amount_cents - total_refunded_cents,
+        "refunds": sorted(
+            (_refund_data(refund) for refund in charge_refunds),
+            key=lambda refund: refund["created_at"],
+            reverse=True,
+        ),
+    }
 
 
 def merchant_id_for_charge(charge_id: str) -> str:
