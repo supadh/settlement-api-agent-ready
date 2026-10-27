@@ -61,6 +61,34 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HighRefundFlagData": {
+        "properties": {
+          "charge_amount_cents": {
+            "title": "Charge Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "refund_ratio_percent": {
+            "title": "Refund Ratio Percent",
+            "type": "integer"
+          },
+          "refunded_cents": {
+            "title": "Refunded Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "charge_id",
+          "charge_amount_cents",
+          "refunded_cents",
+          "refund_ratio_percent"
+        ],
+        "title": "HighRefundFlagData",
+        "type": "object"
+      },
       "MatchResult": {
         "properties": {
           "charge_id": {
@@ -114,6 +142,13 @@
       },
       "ReconciliationData": {
         "properties": {
+          "high_refund_charges": {
+            "items": {
+              "$ref": "#/components/schemas/HighRefundFlagData"
+            },
+            "title": "High Refund Charges",
+            "type": "array"
+          },
           "matched": {
             "items": {
               "$ref": "#/components/schemas/MatchResult"

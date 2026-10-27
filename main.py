@@ -222,7 +222,10 @@ def create_settlement_line(
 
 @app.get("/merchants/{merchant_id}/reconciliation")
 def get_reconciliation(merchant_id: str) -> ReconciliationData:
-    result = reconcile_merchant(merchant_id)
+    result = reconcile_merchant(
+        merchant_id,
+        include_high_refund_charges=feature_flags.high_refund_flagging,
+    )
     observability.capture_product_event(
         "settlement.reconciliation_requested",
         merchant_id,

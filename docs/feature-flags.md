@@ -23,3 +23,26 @@ Rollout:
 3. Enable it for production.
 4. After one release with no rejected valid traffic, remove the legacy path
    and the flag in the same change.
+
+## `FEATURE_HIGH_REFUND_FLAGGING`
+
+Owner: Settlement API maintainers
+
+Default: `false`
+
+When enabled, `GET /merchants/{id}/reconciliation` adds a
+`high_refund_charges` array listing charges whose cumulative refunds exceed
+90% of the original amount (strictly greater than 90%; charges refunded
+exactly 90% are not flagged). Entries are ordered as the charges iterate and
+contain `charge_id`, `charge_amount_cents`, `refunded_cents`, and
+`refund_ratio_percent` (integer floor of the ratio). When the flag is off the
+response contains no `high_refund_charges` key.
+
+Rollout:
+
+1. Enable the flag in development and staging.
+2. Confirm the flagged list matches the settlements team's expectations on
+   known refund-abuse cases.
+3. Enable it for production and let callers adopt the new field.
+4. After consumers have migrated to the new field, remove the flag and emit
+   `high_refund_charges` unconditionally in the same change.
