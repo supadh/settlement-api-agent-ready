@@ -74,10 +74,14 @@ def test_disabled_settlement_validation_preserves_legacy_ingestion() -> None:
 
 def test_feature_flags_are_loaded_from_the_environment() -> None:
     flags = FeatureFlags.from_environment(
-        {"FEATURE_STRICT_SETTLEMENT_VALIDATION": "true"}
+        {
+            "FEATURE_STRICT_SETTLEMENT_VALIDATION": "true",
+            "FEATURE_ONCHAIN_SETTLEMENT": "true",
+        }
     )
 
     assert flags.strict_settlement_validation is True
+    assert flags.onchain_settlement_enabled is True
 
 
 def test_feature_flags_reject_invalid_boolean_values() -> None:

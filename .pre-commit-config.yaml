@@ -34,6 +34,7 @@ repos:
           --max-modules B
           --max-average A
           main.py reconcile.py feature_flags.py logging_config.py
+          coinbase.py
           metrics.py observability.py scripts tests
         language: system
         pass_filenames: false
@@ -42,6 +43,7 @@ repos:
         entry: >-
           python -m vulture
           main.py reconcile.py feature_flags.py logging_config.py
+          coinbase.py
           metrics.py observability.py scripts tests
           --min-confidence 80
         language: system
@@ -54,6 +56,7 @@ repos:
           --enable=duplicate-code
           --min-similarity-lines=6
           main.py reconcile.py feature_flags.py logging_config.py
+          coinbase.py
           metrics.py observability.py scripts tests
         language: system
         pass_filenames: false

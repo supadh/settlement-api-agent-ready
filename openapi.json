@@ -112,6 +112,70 @@
         "title": "MismatchResult",
         "type": "object"
       },
+      "OnchainSettlementRequest": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "destination_address": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Destination Address",
+            "type": "string"
+          }
+        },
+        "required": [
+          "charge_id",
+          "amount_cents",
+          "destination_address"
+        ],
+        "title": "OnchainSettlementRequest",
+        "type": "object"
+      },
+      "OnchainSettlementResponse": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "confirmed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "charge_id",
+          "amount_cents",
+          "tx_hash",
+          "status"
+        ],
+        "title": "OnchainSettlementResponse",
+        "type": "object"
+      },
       "ReconciliationData": {
         "properties": {
           "matched": {
@@ -459,6 +523,57 @@
           }
         },
         "summary": "Create Settlement Line"
+      }
+    },
+    "/settlements/onchain": {
+      "post": {
+        "operationId": "create_onchain_settlement_settlements_onchain_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnchainSettlementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnchainSettlementResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Onchain Settlement"
       }
     }
   }

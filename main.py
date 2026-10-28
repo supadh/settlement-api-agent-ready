@@ -2,10 +2,10 @@ import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
 from os import environ
-from typing import Any, Optional
+from typing import Annotated, Any, Literal, Optional
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
@@ -13,6 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 from sentry_sdk import set_tag
 
+from coinbase import CoinbaseTransferError, coinbase_client
 from feature_flags import feature_flags
 from logging_config import (
     configure_logging,
@@ -24,6 +25,7 @@ from observability import observability
 from privacy import privacy_settings
 from reconcile import (
     ChargeData,
+    ChargeNotFoundError,
     MerchantExportData,
     ReconciliationData,
     RefundData,
@@ -36,6 +38,7 @@ from reconcile import (
     purge_expired_data,
     reconcile_merchant,
     record_charge,
+    settle_charge_onchain,
 )
 
 configure_logging(environ.get("LOG_LEVEL", "INFO"))
@@ -70,6 +73,23 @@ class RefundResponse(BaseModel):
     charge_id: str
     amount_cents: int
     remaining_charge_cents: int
+
+
+class OnchainSettlementRequest(BaseModel):
+    charge_id: str = Field(min_length=1, max_length=64)
+    amount_cents: int
+    destination_address: str = Field(min_length=1, max_length=128)
+
+
+class OnchainSettlementResponse(BaseModel):
+    id: str
+    charge_id: str
+    amount_cents: int
+    tx_hash: str
+    status: Literal["pending", "confirmed"]
+
+
+onchain_settlements_by_idempotency_key: dict[str, OnchainSettlementResponse] = {}
 
 
 def require_admin_access(
@@ -219,6 +239,44 @@ def create_settlement_line(
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.post("/settlements/onchain", response_model=OnchainSettlementResponse)
+def create_onchain_settlement(
+    request: OnchainSettlementRequest,
+    idempotency_key: Annotated[str, Header(min_length=1, max_length=255)],
+) -> OnchainSettlementResponse:
+    if not feature_flags.onchain_settlement_enabled:
+        raise HTTPException(status_code=503, detail="Onchain settlement is disabled")
+    cached = onchain_settlements_by_idempotency_key.get(idempotency_key)
+    if cached is not None:
+        return cached
+    try:
+        line = settle_charge_onchain(
+            request.charge_id,
+            request.amount_cents,
+            lambda amount_units: coinbase_client.send_usdc_transfer(
+                request.destination_address, amount_units
+            ),
+        )
+    except ChargeNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except CoinbaseTransferError as error:
+        logger.warning("settlement.onchain_transfer_rejected")
+        raise HTTPException(
+            status_code=502, detail="Coinbase rejected the transfer"
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    response = OnchainSettlementResponse(
+        id=str(uuid4()),
+        charge_id=request.charge_id,
+        amount_cents=request.amount_cents,
+        tx_hash=line["processor_ref"],
+        status="pending",
+    )
+    onchain_settlements_by_idempotency_key[idempotency_key] = response
+    return response
 
 
 @app.get("/merchants/{merchant_id}/reconciliation")
