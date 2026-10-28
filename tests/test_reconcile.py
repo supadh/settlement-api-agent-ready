@@ -30,6 +30,49 @@ def test_cumulative_refunds_cannot_exceed_charge() -> None:
         reconcile.issue_refund(charge["id"], 6_000, "second request")
 
 
+def test_list_refunds_orders_newest_first() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 1_000, "first request")
+    reconcile.issue_refund(charge["id"], 2_000, "second request")
+    reconcile.refunds[0].created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    reconcile.refunds[1].created_at = datetime(2026, 1, 2, tzinfo=timezone.utc)
+
+    history = reconcile.list_refunds_for_charge(charge["id"])
+
+    assert [refund["id"] for refund in history["refunds"]] == [
+        reconcile.refunds[1].id,
+        reconcile.refunds[0].id,
+    ]
+
+
+def test_list_refunds_sums_partial_refunds_exactly() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 1_000, "first request")
+    reconcile.issue_refund(charge["id"], 2_000, "second request")
+    reconcile.issue_refund(charge["id"], 3_333, "third request")
+
+    history = reconcile.list_refunds_for_charge(charge["id"])
+
+    assert history["charge_id"] == charge["id"]
+    assert history["charge_amount_cents"] == 10_000
+    assert history["total_refunded_cents"] == 6_333
+    assert history["refundable_balance_cents"] == 3_667
+    assert len(history["refunds"]) == 3
+
+
+def test_list_refunds_for_charge_without_refunds_returns_full_balance() -> None:
+    charge = reconcile.record_charge("merchant-123", 7_500, "card-token")
+
+    history = reconcile.list_refunds_for_charge(charge["id"])
+
+    assert history["refunds"] == []
+    assert history["total_refunded_cents"] == 0
+    assert history["refundable_balance_cents"] == 7_500
+
+
+def test_list_refunds_for_unknown_charge_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Charge not found"):
+        reconcile.list_refunds_for_charge("missing-charge")
 def test_refund_reports_remaining_charge_balance() -> None:
     charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
 

@@ -270,3 +270,76 @@ def test_refund_analytics_use_merchant_identity(
         "settlement.refund_created",
         "merchant-123",
     )
+
+
+def test_refund_history_returns_refunds_newest_first() -> None:
+    charge = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": 10_000,
+            "card_token": "processor-token",
+        },
+    ).json()
+    client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 1_000, "reason": "first request"},
+    )
+    client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 2_000, "reason": "second request"},
+    )
+
+    response = client.get(f"/charges/{charge['id']}/refunds")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "charge_id",
+        "charge_amount_cents",
+        "total_refunded_cents",
+        "refundable_balance_cents",
+        "refunds",
+    }
+    assert body["charge_id"] == charge["id"]
+    assert body["charge_amount_cents"] == 10_000
+    assert body["total_refunded_cents"] == 3_000
+    assert body["refundable_balance_cents"] == 7_000
+    assert len(body["refunds"]) == 2
+    assert set(body["refunds"][0]) == {
+        "id",
+        "charge_id",
+        "amount_cents",
+        "reason",
+        "created_at",
+    }
+    assert body["refunds"][0]["created_at"] >= body["refunds"][1]["created_at"]
+
+
+def test_refund_history_for_charge_without_refunds_is_empty() -> None:
+    charge = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": 7_500,
+            "card_token": "processor-token",
+        },
+    ).json()
+
+    response = client.get(f"/charges/{charge['id']}/refunds")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "charge_id": charge["id"],
+        "charge_amount_cents": 7_500,
+        "total_refunded_cents": 0,
+        "refundable_balance_cents": 7_500,
+        "refunds": [],
+    }
+
+
+def test_refund_history_for_unknown_charge_returns_not_found() -> None:
+    response = client.get("/charges/missing-charge/refunds")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Charge not found"}

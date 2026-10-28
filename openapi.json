@@ -141,6 +141,76 @@
         "title": "ReconciliationData",
         "type": "object"
       },
+      "RefundHistoryItemResponse": {
+        "properties": {
+          "amount_cents": {
+            "title": "Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "charge_id",
+          "amount_cents",
+          "reason",
+          "created_at"
+        ],
+        "title": "RefundHistoryItemResponse",
+        "type": "object"
+      },
+      "RefundHistoryResponse": {
+        "properties": {
+          "charge_amount_cents": {
+            "title": "Charge Amount Cents",
+            "type": "integer"
+          },
+          "charge_id": {
+            "title": "Charge Id",
+            "type": "string"
+          },
+          "refundable_balance_cents": {
+            "title": "Refundable Balance Cents",
+            "type": "integer"
+          },
+          "refunds": {
+            "items": {
+              "$ref": "#/components/schemas/RefundHistoryItemResponse"
+            },
+            "title": "Refunds",
+            "type": "array"
+          },
+          "total_refunded_cents": {
+            "title": "Total Refunded Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "charge_id",
+          "charge_amount_cents",
+          "total_refunded_cents",
+          "refundable_balance_cents",
+          "refunds"
+        ],
+        "title": "RefundHistoryResponse",
+        "type": "object"
+      },
       "RefundRequest": {
         "properties": {
           "amount_cents": {
@@ -336,6 +406,43 @@
       }
     },
     "/charges/{charge_id}/refunds": {
+      "get": {
+        "operationId": "get_refund_history_charges__charge_id__refunds_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "charge_id",
+            "required": true,
+            "schema": {
+              "title": "Charge Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Refund History"
+      },
       "post": {
         "operationId": "create_refund_charges__charge_id__refunds_post",
         "parameters": [
