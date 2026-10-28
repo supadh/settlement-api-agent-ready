@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.2.1...meridian-settlement-api-v0.3.0) (2026-10-28)
+
+
+### Features
+
+* add refund history endpoint for a charge (MER-45) ([ffc3ce8](https://github.com/supadh/settlement-api-agent-ready/commit/ffc3ce835d62e0882625f50ccd52296eb45ef5ae))
+* flag charges with refunds over 90% in reconciliation (MER-46) ([99663dd](https://github.com/supadh/settlement-api-agent-ready/commit/99663dd9cec91cf96fc902c9de6d27d1b0cbb271))
+
 ## [0.2.1](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.2.0...meridian-settlement-api-v0.2.1) (2026-10-26)
 
 
