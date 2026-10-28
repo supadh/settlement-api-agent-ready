@@ -29,10 +29,12 @@ from reconcile import (
     MerchantExportData,
     ReconciliationData,
     RefundData,
+    RefundHistoryData,
     SettlementLineData,
     delete_merchant_data,
     export_merchant_data,
     issue_refund,
+    list_refunds_for_charge,
     load_settlement_line,
     merchant_id_for_charge,
     purge_expired_data,
@@ -90,6 +92,20 @@ class OnchainSettlementResponse(BaseModel):
 
 
 onchain_settlements_by_idempotency_key: dict[str, OnchainSettlementResponse] = {}
+class RefundHistoryItemResponse(BaseModel):
+    id: str
+    charge_id: str
+    amount_cents: int
+    reason: str
+    created_at: datetime
+
+
+class RefundHistoryResponse(BaseModel):
+    charge_id: str
+    charge_amount_cents: int
+    total_refunded_cents: int
+    refundable_balance_cents: int
+    refunds: list[RefundHistoryItemResponse]
 
 
 def require_admin_access(
@@ -226,6 +242,17 @@ def create_refund(charge_id: str, request: RefundRequest) -> RefundData:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
+@app.get(
+    "/charges/{charge_id}/refunds",
+    response_model=RefundHistoryResponse,
+)
+def get_refund_history(charge_id: str) -> RefundHistoryData:
+    try:
+        return list_refunds_for_charge(charge_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
 @app.post("/settlement-lines")
 def create_settlement_line(
     request: SettlementLineRequest,
@@ -281,7 +308,10 @@ def create_onchain_settlement(
 
 @app.get("/merchants/{merchant_id}/reconciliation")
 def get_reconciliation(merchant_id: str) -> ReconciliationData:
-    result = reconcile_merchant(merchant_id)
+    result = reconcile_merchant(
+        merchant_id,
+        include_high_refund_charges=feature_flags.high_refund_flagging,
+    )
     observability.capture_product_event(
         "settlement.reconciliation_requested",
         merchant_id,

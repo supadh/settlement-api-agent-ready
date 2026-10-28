@@ -43,3 +43,25 @@ Rollout:
 3. Enable it for production.
 4. Once payouts are durably recorded (the current in-memory ledger is
    process-local), remove the flag and the guard in the same change.
+When enabled, `GET /merchants/{id}/reconciliation` adds a
+`high_refund_charges` array listing charges whose cumulative refunds exceed
+90% of the original amount (strictly greater than 90%; charges refunded
+exactly 90% are not flagged). Entries are ordered as the charges iterate and
+contain `charge_id`, `charge_amount_cents`, `refunded_cents`, and
+`refund_ratio_percent` (integer floor of the ratio). When the flag is off the
+response contains no `high_refund_charges` key.
+
+## `FEATURE_HIGH_REFUND_FLAGGING`
+
+Default: `false`
+
+Owner: Settlement API maintainers
+
+Rollout:
+
+1. Enable the flag in development and staging.
+2. Confirm the flagged list matches the settlements team's expectations on
+   known refund-abuse cases.
+3. Enable it for production and let callers adopt the new field.
+4. After consumers have migrated to the new field, remove the flag and emit
+   `high_refund_charges` unconditionally in the same change.

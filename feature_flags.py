@@ -25,6 +25,7 @@ def _read_bool(environment: Mapping[str, str], name: str, default: bool) -> bool
 class FeatureFlags:
     strict_settlement_validation: bool = False
     onchain_settlement_enabled: bool = False
+    high_refund_flagging: bool = False
 
     @classmethod
     def from_environment(
@@ -39,6 +40,11 @@ class FeatureFlags:
             onchain_settlement_enabled=_read_bool(
                 environment,
                 "FEATURE_ONCHAIN_SETTLEMENT",
+                default = False,
+            ),
+            high_refund_flagging=_read_bool(
+                environment,
+                "FEATURE_HIGH_REFUND_FLAGGING",
                 default=False,
             ),
         )
