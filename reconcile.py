@@ -31,6 +31,7 @@ class Refund:
     amount_cents: int
     reason: str
     created_at: datetime
+    remaining_charge_cents: int
 
 
 @dataclass
@@ -54,6 +55,7 @@ class RefundData(TypedDict):
     amount_cents: int
     reason: str
     created_at: datetime
+    remaining_charge_cents: int
 
 
 class SettlementLineData(TypedDict):
@@ -115,6 +117,7 @@ def _refund_data(refund: Refund) -> RefundData:
         "amount_cents": refund.amount_cents,
         "reason": refund.reason,
         "created_at": refund.created_at,
+        "remaining_charge_cents": refund.remaining_charge_cents,
     }
 
 
@@ -153,6 +156,7 @@ def issue_refund(charge_id: str, amount_cents: int, reason: str) -> RefundData:
     )
     if refunded_cents + amount_cents > charge.amount_cents:
         raise ValueError("Refund amount cannot exceed charge amount")
+    remaining_charge_cents = charge.amount_cents - refunded_cents - amount_cents
 
     refund = Refund(
         id=str(uuid4()),
@@ -160,6 +164,7 @@ def issue_refund(charge_id: str, amount_cents: int, reason: str) -> RefundData:
         amount_cents=amount_cents,
         reason=reason,
         created_at=datetime.now(timezone.utc),
+        remaining_charge_cents=remaining_charge_cents,
     )
     refunds.append(refund)
     REFUNDS_ISSUED.inc()

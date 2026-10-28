@@ -31,6 +31,27 @@ def test_cumulative_refunds_cannot_exceed_charge() -> None:
         reconcile.issue_refund(charge["id"], 6_000, "second request")
 
 
+def test_refund_reports_remaining_charge_balance() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+
+    partial = reconcile.issue_refund(charge["id"], 4_000, "partial request")
+    full = reconcile.issue_refund(charge["id"], 6_000, "final request")
+
+    assert partial["remaining_charge_cents"] == 6_000
+    assert full["remaining_charge_cents"] == 0
+
+
+def test_rejected_over_refund_leaves_refunds_unchanged() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 4_000, "partial request")
+    refunds_before = list(reconcile.refunds)
+
+    with pytest.raises(ValueError, match="cannot exceed"):
+        reconcile.issue_refund(charge["id"], 6_001, "over-balance request")
+
+    assert reconcile.refunds == refunds_before
+
+
 def test_strict_settlement_validation_rejects_an_unknown_charge() -> None:
     with pytest.raises(ValueError, match="Charge not found"):
         reconcile.load_settlement_line(

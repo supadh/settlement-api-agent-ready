@@ -211,12 +211,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "remaining_charge_cents": {
+            "title": "Remaining Charge Cents",
+            "type": "integer"
           }
         },
         "required": [
           "id",
           "charge_id",
-          "amount_cents"
+          "amount_cents",
+          "remaining_charge_cents"
         ],
         "title": "RefundResponse",
         "type": "object"

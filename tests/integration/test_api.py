@@ -5,6 +5,7 @@ from pytest import MonkeyPatch
 
 import main
 from feature_flags import FeatureFlags
+import reconcile
 from observability import observability as service_observability
 from privacy import PrivacySettings
 
@@ -93,6 +94,8 @@ def test_reconciliation_lists_high_refund_charges_when_enabled(
 ) -> None:
     monkeypatch.setattr(main, "feature_flags", FeatureFlags(high_refund_flagging=True))
     charge_response = client.post(
+def test_refund_response_reports_remaining_charge_balance() -> None:
+    charge = client.post(
         "/charges",
         json={
             "merchant_id": "merchant-123",
@@ -130,6 +133,46 @@ def test_reconciliation_lists_high_refund_charges_when_enabled(
             }
         ],
     }
+    ).json()
+
+    partial = client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 4_000, "reason": "partial request"},
+    )
+    full = client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 6_000, "reason": "final request"},
+    )
+
+    assert partial.status_code == 200
+    assert partial.json()["remaining_charge_cents"] == 6_000
+    assert full.status_code == 200
+    assert full.json()["remaining_charge_cents"] == 0
+
+
+def test_over_balance_refund_returns_bad_request_and_appends_nothing() -> None:
+    charge = client.post(
+        "/charges",
+        json={
+            "merchant_id": "merchant-123",
+            "amount_cents": 10_000,
+            "card_token": "card-token",
+        },
+    ).json()
+    client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 4_000, "reason": "partial request"},
+    )
+    refunds_before = list(reconcile.refunds)
+
+    response = client.post(
+        f"/charges/{charge['id']}/refunds",
+        json={"amount_cents": 6_001, "reason": "over-balance request"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Refund amount cannot exceed charge amount"}
+    assert reconcile.refunds == refunds_before
 
 
 def test_validation_errors_do_not_reflect_card_tokens() -> None:
