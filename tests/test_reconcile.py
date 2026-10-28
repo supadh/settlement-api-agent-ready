@@ -4,6 +4,7 @@ import pytest
 
 import reconcile
 from feature_flags import FeatureFlags
+from reconcile import HIGH_REFUND_RATIO_PERCENT
 
 
 def test_record_charge() -> None:
@@ -117,10 +118,20 @@ def test_disabled_settlement_validation_preserves_legacy_ingestion() -> None:
 
 def test_feature_flags_are_loaded_from_the_environment() -> None:
     flags = FeatureFlags.from_environment(
-        {"FEATURE_STRICT_SETTLEMENT_VALIDATION": "true"}
+        {
+            "FEATURE_STRICT_SETTLEMENT_VALIDATION": "true",
+            "FEATURE_HIGH_REFUND_FLAGGING": "true",
+        }
     )
 
     assert flags.strict_settlement_validation is True
+    assert flags.high_refund_flagging is True
+
+
+def test_high_refund_flagging_defaults_to_off() -> None:
+    flags = FeatureFlags.from_environment({})
+
+    assert flags.high_refund_flagging is False
 
 
 def test_feature_flags_reject_invalid_boolean_values() -> None:
@@ -159,3 +170,123 @@ def test_expired_merchant_data_is_purged() -> None:
 
     assert deleted["charges"] == 1
     assert charge["id"] not in reconcile.charges
+
+
+def test_high_refund_charges_omitted_by_default() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 9_001, "customer request")
+
+    report = reconcile.reconcile_merchant("merchant-123")
+
+    assert "high_refund_charges" not in report
+
+
+def test_high_refund_charges_flagged_strictly_over_90_percent() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 9_001, "customer request")
+
+    report = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+
+    assert report["high_refund_charges"] == [
+        {
+            "charge_id": charge["id"],
+            "charge_amount_cents": 10_000,
+            "refunded_cents": 9_001,
+            "refund_ratio_percent": 90,
+        }
+    ]
+
+
+def test_charge_refunded_exactly_90_percent_is_not_flagged() -> None:
+    assert HIGH_REFUND_RATIO_PERCENT == 90
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 9_000, "customer request")
+
+    report = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+
+    assert report["high_refund_charges"] == []
+
+
+def test_charge_refunded_50_percent_is_not_flagged() -> None:
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 5_000, "customer request")
+
+    report = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+
+    assert report["high_refund_charges"] == []
+
+
+def test_fully_refunded_charge_is_flagged_at_100_percent() -> None:
+    charge = reconcile.record_charge("merchant-123", 4_000, "card-token")
+    reconcile.issue_refund(charge["id"], 4_000, "customer request")
+
+    report = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+
+    assert report["high_refund_charges"] == [
+        {
+            "charge_id": charge["id"],
+            "charge_amount_cents": 4_000,
+            "refunded_cents": 4_000,
+            "refund_ratio_percent": 100,
+        }
+    ]
+
+
+def test_multiple_high_refund_charges_are_listed_in_charge_order() -> None:
+    first = reconcile.record_charge("merchant-123", 1_000, "card-token")
+    second = reconcile.record_charge("merchant-123", 2_000, "card-token")
+    reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(second["id"], 2_000, "customer request")
+    reconcile.issue_refund(first["id"], 901, "customer request")
+
+    report = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+
+    assert [entry["charge_id"] for entry in report["high_refund_charges"]] == [
+        first["id"],
+        second["id"],
+    ]
+
+
+def test_matched_and_mismatched_are_unchanged_when_high_refund_charges_included() -> (
+    None
+):
+    charge = reconcile.record_charge("merchant-123", 10_000, "card-token")
+    reconcile.issue_refund(charge["id"], 9_001, "customer request")
+    reconcile.load_settlement_line("processor-ref", charge["id"], 990)
+
+    flagged = reconcile.reconcile_merchant(
+        "merchant-123", include_high_refund_charges=True
+    )
+    unflagged = reconcile.reconcile_merchant("merchant-123")
+
+    assert flagged["matched"] == unflagged["matched"] == []
+    assert (
+        flagged["mismatched"]
+        == unflagged["mismatched"]
+        == [
+            {
+                "charge_id": charge["id"],
+                "ledger_amount_cents": 999,
+                "settled_amount_cents": 990,
+                "difference_cents": -9,
+            }
+        ]
+    )
+
+
+def test_unknown_merchant_returns_empty_high_refund_charges() -> None:
+    report = reconcile.reconcile_merchant(
+        "merchant-unknown", include_high_refund_charges=True
+    )
+
+    assert report["high_refund_charges"] == []

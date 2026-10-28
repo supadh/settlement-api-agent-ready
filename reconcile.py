@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 from logging_config import logger
 from metrics import (
@@ -12,6 +12,8 @@ from metrics import (
     REFUNDS_ISSUED,
     SETTLEMENT_LINES_LOADED,
 )
+
+HIGH_REFUND_RATIO_PERCENT = 90
 
 
 @dataclass
@@ -81,10 +83,18 @@ class MismatchResult(MatchResult):
     difference_cents: int
 
 
+class HighRefundFlagData(TypedDict):
+    charge_id: str
+    charge_amount_cents: int
+    refunded_cents: int
+    refund_ratio_percent: int
+
+
 class ReconciliationData(TypedDict):
     merchant_id: str
     matched: list[MatchResult]
     mismatched: list[MismatchResult]
+    high_refund_charges: NotRequired[list[HighRefundFlagData]]
 
 
 class MerchantExportData(TypedDict):
@@ -227,22 +237,42 @@ def load_settlement_line(
     return _settlement_line_data(line)
 
 
-def reconcile_merchant(merchant_id: str) -> ReconciliationData:
+def _refunded_cents(charge_id: str) -> int:
+    return sum(
+        refund.amount_cents for refund in refunds if refund.charge_id == charge_id
+    )
+
+
+def _settled_cents(charge_id: str) -> int:
+    return sum(
+        line.amount_cents for line in settlement_lines if line.charge_id == charge_id
+    )
+
+
+def _high_refund_flag(charge: Charge, refunded_cents: int) -> HighRefundFlagData | None:
+    if refunded_cents * 100 <= charge.amount_cents * HIGH_REFUND_RATIO_PERCENT:
+        return None
+    return {
+        "charge_id": charge.id,
+        "charge_amount_cents": charge.amount_cents,
+        "refunded_cents": refunded_cents,
+        "refund_ratio_percent": refunded_cents * 100 // charge.amount_cents,
+    }
+
+
+def reconcile_merchant(
+    merchant_id: str, include_high_refund_charges: bool = False
+) -> ReconciliationData:
     matched: list[MatchResult] = []
     mismatched: list[MismatchResult] = []
+    high_refund_charges: list[HighRefundFlagData] = []
 
     merchant_charges = [
         charge for charge in charges.values() if charge.merchant_id == merchant_id
     ]
     for charge in merchant_charges:
-        refunded_cents = sum(
-            refund.amount_cents for refund in refunds if refund.charge_id == charge.id
-        )
-        settled_cents = sum(
-            line.amount_cents
-            for line in settlement_lines
-            if line.charge_id == charge.id
-        )
+        refunded_cents = _refunded_cents(charge.id)
+        settled_cents = _settled_cents(charge.id)
         ledger_cents = charge.amount_cents - refunded_cents
         if ledger_cents == settled_cents:
             matched.append(
@@ -261,6 +291,9 @@ def reconcile_merchant(merchant_id: str) -> ReconciliationData:
                     "difference_cents": settled_cents - ledger_cents,
                 }
             )
+        flag = _high_refund_flag(charge, refunded_cents)
+        if flag is not None:
+            high_refund_charges.append(flag)
 
     RECONCILIATION_MISMATCHES.inc(len(mismatched))
     logger.info(
@@ -270,11 +303,14 @@ def reconcile_merchant(merchant_id: str) -> ReconciliationData:
             "mismatched_count": len(mismatched),
         },
     )
-    return {
+    result: ReconciliationData = {
         "merchant_id": merchant_id,
         "matched": matched,
         "mismatched": mismatched,
     }
+    if include_high_refund_charges:
+        result["high_refund_charges"] = high_refund_charges
+    return result
 
 
 def export_merchant_data(merchant_id: str) -> MerchantExportData:
