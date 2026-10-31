@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.3.0...meridian-settlement-api-v0.4.0) (2026-10-31)
+
+
+### Features
+
+* settle charges onchain to Base USDC via Coinbase (MER-47) ([e585096](https://github.com/supadh/settlement-api-agent-ready/commit/e585096c80a6e1ba55ebad38eb942ac860daefe9))
+
 ## [0.3.0](https://github.com/supadh/settlement-api-agent-ready/compare/meridian-settlement-api-v0.2.1...meridian-settlement-api-v0.3.0) (2026-10-28)
 
 
