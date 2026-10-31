@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -83,6 +83,8 @@ class MismatchResult(MatchResult):
     difference_cents: int
 
 
+class ChargeNotFoundError(LookupError):
+    """Raised when a charge ID does not exist in the ledger."""
 class HighRefundFlagData(TypedDict):
     charge_id: str
     charge_amount_cents: int
@@ -207,6 +209,51 @@ def merchant_id_for_charge(charge_id: str) -> str:
     if charge is None:
         raise ValueError("Charge not found")
     return charge.merchant_id
+
+
+USDC_UNITS_PER_CENT = 10_000
+
+
+def settle_charge_onchain(
+    charge_id: str,
+    amount_cents: int,
+    submit_transfer: Callable[[int], str],
+) -> SettlementLineData:
+    """Validate an onchain payout, submit it, and record the settlement line.
+
+    ``submit_transfer`` receives the amount in USDC base units (1 cent equals
+    ``USDC_UNITS_PER_CENT`` base units) and returns the transaction hash. It is
+    invoked only after validation passes, so a rejected transfer leaves the
+    ledger untouched.
+    """
+    charge = charges.get(charge_id)
+    if charge is None:
+        raise ChargeNotFoundError("Charge not found")
+    if amount_cents <= 0:
+        raise ValueError("Settlement amount must be positive")
+    refunded_cents = sum(
+        refund.amount_cents for refund in refunds if refund.charge_id == charge_id
+    )
+    settled_cents = sum(
+        line.amount_cents for line in settlement_lines if line.charge_id == charge_id
+    )
+    if refunded_cents + settled_cents + amount_cents > charge.amount_cents:
+        raise ValueError("Settlement amount cannot exceed refundable amount")
+
+    tx_hash = submit_transfer(amount_cents * USDC_UNITS_PER_CENT)
+    line = SettlementLine(
+        processor_ref=tx_hash,
+        charge_id=charge_id,
+        amount_cents=amount_cents,
+        created_at=datetime.now(timezone.utc),
+    )
+    settlement_lines.append(line)
+    SETTLEMENT_LINES_LOADED.inc()
+    logger.info(
+        "settlement.onchain_recorded",
+        extra={"charge_id": charge_id},
+    )
+    return _settlement_line_data(line)
 
 
 def load_settlement_line(
